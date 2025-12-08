@@ -1,0 +1,1332 @@
+// src/pages/AdminDashboard.jsx
+import React, { useState, useEffect } from "react";
+import "./AdminDashboard.css";
+
+const API_BASE_URL = "http://localhost:8888";
+
+/* ========== SIDEBAR ========== */
+
+const AdminSidebar = ({ activeSection, onSelectSection }) => {
+  const items = [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "products", label: "Products" },
+    { key: "orders", label: "Orders" },
+    { key: "users", label: "Users" },
+  ];
+
+  return (
+    <aside className="admin-sidebar">
+      <div className="sidebar-header">
+        <div className="logo-pill">SS</div>
+        <div>
+          <div className="sidebar-brand">ShopSphere</div>
+          <div className="sidebar-sub">Admin Panel</div>
+        </div>
+      </div>
+
+      <ul className="sidebar-menu">
+        {items.map((item) => (
+          <li
+            key={item.key}
+            onClick={() => onSelectSection(item.key)}
+            className={activeSection === item.key ? "active" : ""}
+          >
+            {item.label}
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+};
+
+/* ========== DASHBOARD HOME ========== */
+
+const DashboardHome = () => {
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const token = localStorage.getItem("token");
+
+        const res = await fetch(`${API_BASE_URL}/api/admin/dashboard`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        });
+
+        if (!res.ok) {
+          const txt = await res.text();
+          console.error("Dashboard API error:", res.status, txt);
+          throw new Error("Failed to load dashboard data");
+        }
+
+        const data = await res.json();
+        setSummary(data || {});
+      } catch (err) {
+        console.error("Dashboard error:", err);
+        setError("Could not load dashboard data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSummary();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="dashboard-grid">
+        <p className="panel-subtitle">Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  if (!summary || error) {
+    return (
+      <div className="dashboard-grid">
+        <p className="panel-subtitle">{error || "No dashboard data."}</p>
+      </div>
+    );
+  }
+
+  const {
+    totalOrders = 0,
+    totalProducts = 0,
+    ordersByStatus = {},
+    recentOrders = [],
+    lowStockProducts = [],
+  } = summary;
+
+  // ✅ only these 2 – no totalRevenue / successfulPayments now
+  const stats = [
+    {
+      label: "Total Orders",
+      value: totalOrders,
+      chip: "All orders",
+    },
+    {
+      label: "Active Products",
+      value: totalProducts,
+      chip: "Catalog",
+    },
+  ];
+
+  const statusLabels = [
+    { key: "pending", label: "Pending" },
+    { key: "processing", label: "Processing" },
+    { key: "confirmed", label: "Confirmed" },
+    { key: "shipped", label: "Shipped" },
+    { key: "delivered", label: "Delivered" },
+    { key: "cancelled", label: "Cancelled" },
+    { key: "expired", label: "Expired" },
+  ];
+
+  return (
+    <div className="dashboard-grid">
+      {/* Stats row */}
+      <section className="stat-grid">
+        {stats.map((stat) => (
+          <article key={stat.label} className="stat-card">
+            <h3>{stat.label}</h3>
+            <p className="stat-value">{stat.value}</p>
+            <span className="stat-chip">{stat.chip}</span>
+          </article>
+        ))}
+      </section>
+
+      {/* Orders by status + low stock */}
+      <section className="lower-grid">
+        <article className="panel panel-main">
+          <div className="panel-header">
+            <h3>Orders by Status</h3>
+            <span className="panel-tag">Live</span>
+          </div>
+
+          <div className="orders-status-list">
+            {statusLabels.map((s) => {
+              const val = ordersByStatus?.[s.key] ?? 0;
+              return (
+                <div key={s.key} className="orders-status-row">
+                  <span className="orders-status-name">{s.label}</span>
+                  <span className="orders-status-count">{val}</span>
+                </div>
+              );
+            })}
+          </div>
+        </article>
+
+        <article className="panel panel-side">
+          <div className="panel-header">
+            <h3>Low Stock Alerts</h3>
+            <span className="panel-tag soft">Qty ≤ 5</span>
+          </div>
+
+          {lowStockProducts && lowStockProducts.length > 0 ? (
+            <ul className="low-stock-list">
+              {lowStockProducts.map((item) => (
+                <li key={item.productId} className="low-stock-item">
+                  <div>
+                    <p className="low-stock-name">{item.productName}</p>
+                    <p className="low-stock-subtitle">ID: {item.productId}</p>
+                  </div>
+                  <span
+                    className={`low-stock-badge ${
+                      item.productQuantity != null && item.productQuantity <= 2
+                        ? "critical"
+                        : ""
+                    }`}
+                  >
+                    {item.productQuantity} left
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="panel-subtitle">No low stock items.</p>
+          )}
+        </article>
+      </section>
+
+      {/* Recent orders */}
+      <section className="panel panel-full" style={{ marginTop: "20px" }}>
+        <div className="panel-header">
+          <div>
+            <h3>Recent Orders</h3>
+            <p className="panel-subtitle">Latest 5 orders</p>
+          </div>
+        </div>
+
+        {recentOrders && recentOrders.length > 0 ? (
+          <table className="panel-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Placed At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentOrders.map((o) => (
+                <tr key={o.orderId}>
+                  <td>#ORD-{o.orderId}</td>
+                  <td>{o.customerName}</td>
+                  <td>
+                    ₹{Number(o.totalAmount || 0).toLocaleString("en-IN")}
+                  </td>
+                  <td>
+                    <span
+                      className={`status-pill status-${o.orderStatus?.toLowerCase()}`}
+                    >
+                      {o.orderStatus}
+                    </span>
+                  </td>
+                  <td>
+                    {o.placedAt
+                      ? new Date(o.placedAt).toLocaleString("en-IN")
+                      : "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="panel-subtitle">No recent orders.</p>
+        )}
+      </section>
+    </div>
+  );
+};
+
+/* ========== PRODUCTS VIEW ========== */
+
+const ProductsView = () => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const token = localStorage.getItem("token");
+
+        const res = await fetch(`${API_BASE_URL}/api/products`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        });
+
+        if (!res.ok) throw new Error("Failed to load products");
+
+        const data = await res.json();
+        setProducts(data || []);
+      } catch (err) {
+        console.error("Products error:", err);
+        setError("Could not load products.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  const getProductId = (p) => p.productId ?? p.product_id;
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this product?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      });
+
+      if (!res.ok) throw new Error("Delete failed");
+
+      setProducts((prev) => prev.filter((p) => getProductId(p) !== id));
+    } catch (err) {
+      console.error(err);
+      alert("Could not delete product.");
+    }
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditingProduct((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSave = async () => {
+    if (!editingProduct) return;
+    const id = getProductId(editingProduct);
+    if (!id) {
+      alert("Invalid product id.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+        body: JSON.stringify(editingProduct),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Update failed:", res.status, text);
+        throw new Error(text || `Update failed (status ${res.status})`);
+      }
+
+      const updated = await res.json();
+
+      setProducts((prev) =>
+        prev.map((p) => (getProductId(p) === id ? updated : p))
+      );
+      setEditingProduct(null);
+    } catch (err) {
+      console.error(err);
+      alert("Could not save product.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="panel">
+        <p className="panel-subtitle">Loading products...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="panel">
+        <p className="panel-subtitle">{error}</p>
+      </div>
+    );
+  }
+
+  if (!products || products.length === 0) {
+    return (
+      <div className="panel">
+        <p className="panel-subtitle">No products found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="panel panel-full">
+      <div className="panel-header">
+        <div>
+          <h3>Products</h3>
+          <p className="panel-subtitle">
+            Showing {products.length} product
+            {products.length > 1 ? "s" : ""}.
+          </p>
+        </div>
+      </div>
+
+      <table className="panel-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>MRP</th>
+            <th>Price</th>
+            <th>Qty</th>
+            <th>Brand</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {products.map((p) => {
+            const id = getProductId(p);
+            return (
+              <tr key={id}>
+                <td>{id}</td>
+                <td>{p.productName}</td>
+                <td>
+                  {p.productMrp != null
+                    ? `₹${Number(p.productMrp).toLocaleString("en-IN")}`
+                    : "-"}
+                </td>
+                <td>
+                  {p.productPrice != null
+                    ? `₹${Number(p.productPrice).toLocaleString("en-IN")}`
+                    : "-"}
+                </td>
+                <td>{p.productQuantity != null ? p.productQuantity : "-"}</td>
+                <td>{p.brand || "-"}</td>
+                <td>
+                  <button
+                    className="table-btn"
+                    onClick={() => setEditingProduct(p)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="table-btn danger"
+                    onClick={() => handleDelete(id)}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {editingProduct && (
+        <div className="edit-panel">
+          <h4>Edit Product #{getProductId(editingProduct)}</h4>
+          <div className="edit-grid">
+            <label>
+              Name
+              <input
+                type="text"
+                value={editingProduct.productName || ""}
+                onChange={(e) =>
+                  handleEditChange("productName", e.target.value)
+                }
+              />
+            </label>
+            <label>
+              MRP
+              <input
+                type="number"
+                value={editingProduct.productMrp || ""}
+                onChange={(e) =>
+                  handleEditChange("productMrp", Number(e.target.value))
+                }
+              />
+            </label>
+            <label>
+              Price
+              <input
+                type="number"
+                value={editingProduct.productPrice || ""}
+                onChange={(e) =>
+                  handleEditChange("productPrice", Number(e.target.value))
+                }
+              />
+            </label>
+            <label>
+              Quantity
+              <input
+                type="number"
+                value={editingProduct.productQuantity || ""}
+                onChange={(e) =>
+                  handleEditChange("productQuantity", Number(e.target.value))
+                }
+              />
+            </label>
+            <label>
+              Brand
+              <input
+                type="text"
+                value={editingProduct.brand || ""}
+                onChange={(e) => handleEditChange("brand", e.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="edit-actions">
+            <button
+              className="table-btn secondary"
+              onClick={() => setEditingProduct(null)}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              className="table-btn"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save changes"}
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};
+
+/* ========== ORDERS VIEW ========== */
+
+const OrdersView = () => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const token = localStorage.getItem("token");
+
+        const res = await fetch(`${API_BASE_URL}/api/orders`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("Orders API error:", res.status, text);
+
+          if (res.status === 403) {
+            setError(
+              "You are not authorized to view orders. Login as ADMIN/SELLER."
+            );
+          } else {
+            setError("Could not load orders.");
+          }
+          return;
+        }
+
+        const data = await res.json();
+        setOrders(data || []);
+      } catch (err) {
+        console.error("Orders error:", err);
+        setError("Could not load orders (network error).");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
+
+  const getOrderId = (o) => o.orderId ?? o.order_id;
+
+  if (loading) {
+    return (
+      <div className="panel">
+        <p className="panel-subtitle">Loading orders...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="panel">
+        <p className="panel-subtitle">{error}</p>
+      </div>
+    );
+  }
+
+  if (!orders || orders.length === 0) {
+    return (
+      <div className="panel">
+        <p className="panel-subtitle">No orders found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="panel panel-full">
+      <div className="panel-header">
+        <div>
+          <h3>Orders</h3>
+          <p className="panel-subtitle">
+            Showing {orders.length} order{orders.length > 1 ? "s" : ""}.
+          </p>
+        </div>
+      </div>
+
+      <table className="panel-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>User ID</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th>Placed At</th>
+            <th>Payment Method</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map((o) => {
+            const id = getOrderId(o);
+            return (
+              <tr key={id}>
+                <td>#ORD-{id}</td>
+                <td>{o.userId}</td>
+                <td>
+                  {o.totalAmount != null
+                    ? `₹${Number(o.totalAmount).toLocaleString("en-IN")}`
+                    : "-"}
+                </td>
+                <td>
+                  <span
+                    className={`status-pill status-${o.orderStatus?.toLowerCase()}`}
+                  >
+                    {o.orderStatus}
+                  </span>
+                </td>
+                <td>
+                  {o.placedAt
+                    ? new Date(o.placedAt).toLocaleString("en-IN")
+                    : "-"}
+                </td>
+                <td>{o.paymentMethod || "-"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+  );
+};
+
+/* ========== USERS VIEW ========== */
+
+const UsersView = () => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const token = localStorage.getItem("token");
+
+        const res = await fetch(`${API_BASE_URL}/api/users`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("Users API error:", res.status, text);
+
+          if (res.status === 403) {
+            setError("You are not authorized to view users. Login as ADMIN.");
+          } else {
+            setError("Could not load users.");
+          }
+          return;
+        }
+
+        const data = await res.json();
+        setUsers(data || []);
+      } catch (err) {
+        console.error("Users error:", err);
+        setError("Could not load users (network error).");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  const getUserId = (u) => u.userId ?? u.user_id;
+
+  if (loading) {
+    return (
+      <div className="panel">
+        <p className="panel-subtitle">Loading users...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="panel">
+        <p className="panel-subtitle">{error}</p>
+      </div>
+    );
+  }
+
+  if (!users || users.length === 0) {
+    return (
+      <div className="panel">
+        <p className="panel-subtitle">No users found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="panel panel-full">
+      <div className="panel-header">
+        <div>
+          <h3>Users</h3>
+          <p className="panel-subtitle">
+            Showing {users.length} user{users.length > 1 ? "s" : ""}.
+          </p>
+        </div>
+      </div>
+
+      <table className="panel-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Role</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((u) => {
+            const id = getUserId(u);
+            return (
+              <tr key={id}>
+                <td>{id}</td>
+                <td>{u.name}</td>
+                <td>{u.email}</td>
+                <td>{u.phone}</td>
+                <td>{u.role}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+  );
+};
+
+/* ========== MAIN ADMIN DASHBOARD ========== */
+
+const AdminDashboard = () => {
+  const [section, setSection] = useState("dashboard");
+
+  return (
+    <div className="admin-container">
+      <AdminSidebar activeSection={section} onSelectSection={setSection} />
+      <main className="admin-main">
+        {section === "dashboard" && <DashboardHome />}
+        {section === "products" && <ProductsView />}
+        {section === "orders" && <OrdersView />}
+        {section === "users" && <UsersView />}
+      </main>
+    </div>
+  );
+};
+
+export default AdminDashboard;
+
+
+
+
+----------------------------------------------------------------------------------------------------------
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import "./ProductDetailsPage.css";
+import api from "../api/axios";
+
+const ProductDetailsPage = () => {
+  const { productId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [product, setProduct] = useState(null);
+  const [qty, setQty] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState("");
+
+  // reviews
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState("");
+  const [myReview, setMyReview] = useState(null);
+  const [reviewFormOpen, setReviewFormOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const storedUserId = localStorage.getItem("userId");
+  const userId = storedUserId ? parseInt(storedUserId, 10) : null;
+  const token = localStorage.getItem("token");
+  const isLoggedIn = !!(userId && token);
+
+  const cameFromOrders = location.state?.from === "orders";
+
+  // -------- Fetch product details --------
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const res = await api.get(`/products/${productId}`);
+        setProduct(res.data);
+      } catch (err) {
+        console.error(err);
+        setError(
+          err.response?.data?.message ||
+            "Failed to load product details. Please try again."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (productId) {
+      fetchProduct();
+    }
+  }, [productId]);
+
+  // -------- Normalize review (handles DTO + productReview map) --------
+  const normalizeReview = (r) => ({
+    reviewId: r.reviewId ?? r.review_id,
+    userId: r.userId ?? r.user_id,
+    productId: r.productId ?? r.product_id,
+    rating: r.rating,
+    reviewText: r.reviewText ?? r.review_text,
+    status: r.status,
+    createdAt: r.createdAt ?? r.created_at,
+    userName: r.userName ?? r.user_name ?? "User",
+  });
+
+  // -------- Fetch reviews --------
+  const fetchReviews = async () => {
+    try {
+      setReviewsLoading(true);
+      setReviewsError("");
+
+      // 1️⃣ All reviews for product (with user_name) – matches backend:
+      //    @GetMapping("/productReview/{productId}")
+      const allRes = await api.get(`/reviews/productReview/${productId}`);
+      const allData = Array.isArray(allRes.data)
+        ? allRes.data.map(normalizeReview)
+        : [];
+
+      setReviews(allData);
+
+      // 2️⃣ Logged-in user’s reviews across all products:
+      //    @GetMapping("/user/{userId}")
+      if (isLoggedIn) {
+        const myRes = await api
+          .get(`/reviews/user/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          .catch((err) => {
+            if (err.response && err.response.status === 404) {
+              return { data: [] };
+            }
+            throw err;
+          });
+
+        const mineAll = Array.isArray(myRes.data)
+          ? myRes.data.map(normalizeReview)
+          : [];
+
+        const mineForThis = mineAll.find(
+          (rev) => Number(rev.productId) === Number(productId)
+        );
+
+        if (mineForThis) {
+          setMyReview(mineForThis);
+          setReviewRating(mineForThis.rating ?? 5);
+          setReviewText(mineForThis.reviewText ?? "");
+        } else {
+          setMyReview(null);
+          setReviewRating(5);
+          setReviewText("");
+        }
+      } else {
+        setMyReview(null);
+        setReviewRating(5);
+        setReviewText("");
+      }
+    } catch (err) {
+      console.error(err);
+      setReviewsError(
+        err.response?.data?.message ||
+          "Failed to load reviews. Please try again."
+      );
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (productId) {
+      fetchReviews();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId, isLoggedIn]);
+
+  // -------- Helpers --------
+  const ensureLoggedIn = () => {
+    if (!userId || !token) {
+      alert("Please log in again to continue.");
+      return false;
+    }
+    if (!product) return false;
+    return true;
+  };
+
+  const getOrCreateCartId = async () => {
+    let res;
+    let cartData;
+
+    res = await fetch(`http://localhost:8888/api/carts/user/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      res = await fetch(`http://localhost:8888/api/carts/${userId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || "Failed to create cart");
+      }
+    }
+
+    cartData = await res.json();
+    const cartId = cartData.cartId ?? cartData.id;
+    if (!cartId) throw new Error("Cart id not available from server");
+
+    return cartId;
+  };
+
+  const handleQtyChange = (newQty) => {
+    if (newQty < 1) return;
+    setQty(newQty);
+  };
+
+  const handleBack = () => {
+    if (cameFromOrders) {
+      navigate("/my-orders");
+    } else {
+      navigate("/UserDashBoard");
+    }
+  };
+
+  // -------- Add to Cart --------
+  const handleAddToCart = async () => {
+    if (!ensureLoggedIn()) return;
+
+    try {
+      setAdding(true);
+      setError("");
+
+      const cartId = await getOrCreateCartId();
+      const productIdToUse = product.product_id ?? product.productId;
+
+      const payload = {
+        cartId,
+        productId: productIdToUse,
+        quantity: qty,
+      };
+
+      const res = await fetch("http://localhost:8888/api/cart-items", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || "Failed to add product to cart");
+      }
+
+      if (
+        window.confirm("Item added to cart. Do you want to go to your cart?")
+      ) {
+        navigate("/cart");
+      }
+    } catch (err) {
+      console.error(err);
+      setError(
+        err.message || "Failed to add product to cart. Please try again."
+      );
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  // -------- Buy Now --------
+  const handleBuyNow = () => {
+    if (!ensureLoggedIn()) return;
+
+    navigate("/order", {
+      state: {
+        buyNow: true,
+        product,
+        qty,
+      },
+    });
+  };
+
+  // -------- Submit Review --------
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!ensureLoggedIn()) return;
+
+    if (!reviewRating) {
+      alert("Please select a rating.");
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+      setReviewsError("");
+
+      const payload = {
+        userId,
+        productId: product.productId ?? product.product_id,
+        rating: reviewRating,
+        reviewText: reviewText.trim(),
+        // status not required from FE; backend sets "VISIBLE"
+      };
+
+      // ✅ Backend only exposes POST /api/reviews, so always use POST.
+      // If your DB has a unique constraint on (userId, productId),
+      // saveReview can behave like "upsert".
+      await api.post(`/reviews`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      await fetchReviews();
+
+      // optional: refresh product rating/count
+      try {
+        const res = await api.get(`/products/${productId}`);
+        setProduct(res.data);
+      } catch (inner) {
+        console.warn("Failed to refresh product rating after review", inner);
+      }
+
+      setReviewFormOpen(false);
+    } catch (err) {
+      console.error(err);
+      setReviewsError(
+        err.response?.data?.message ||
+          "Failed to submit review. Please try again."
+      );
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  // -------- Price / Discount / Rating helpers --------
+  const sellingPrice = Number(product?.productPrice ?? 0);
+  const mrp = Number(product?.productMrp ?? 0);
+  const hasDiscount = mrp > 0 && sellingPrice < mrp;
+  const discountPercent = hasDiscount
+    ? Math.round(((mrp - sellingPrice) / mrp) * 100)
+    : null;
+
+  const formatReviewDate = (value) => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("en-IN", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  return (
+    <div className="cart-page-wrapper">
+      <div className="cart-card product-details-card">
+        {loading && <p className="cart-info">Loading product details...</p>}
+        {error && <p className="cart-error">{error}</p>}
+
+        {!loading && !error && product && (
+          <>
+            <div className="product-details-layout">
+              {/* LEFT: image */}
+              <div className="product-image-box">
+                {product.imageUrl ? (
+                  <img
+                    src={
+                      product.imageUrl.startsWith("http")
+                        ? product.imageUrl
+                        : `/images/products/${product.imageUrl}`
+                    }
+                    alt={product.productName}
+                    className="product-image-main"
+                  />
+                ) : (
+                  <div className="product-image-placeholder">
+                    {product.productName?.[0] || "P"}
+                  </div>
+                )}
+              </div>
+
+              {/* RIGHT: info */}
+              <div className="product-info-box">
+                <h1 className="product-title">
+                  {product.productName || "Product"}
+                </h1>
+
+                <div className="product-price-section">
+                  <span className="price">
+                    ₹{sellingPrice.toLocaleString("en-IN")}
+                  </span>
+                  {mrp > 0 && (
+                    <span className="mrp">
+                      ₹{mrp.toLocaleString("en-IN")}
+                    </span>
+                  )}
+                  {hasDiscount && (
+                    <span className="discount">{discountPercent}% off</span>
+                  )}
+                </div>
+
+                {product.brand && (
+                  <p className="product-meta">
+                    Brand: <span>{product.brand}</span>
+                  </p>
+                )}
+
+                <p className="product-meta">
+                  Rating:{" "}
+                  <span className="rating-value">
+                    {Number(product.productAvgRating || 0).toFixed(1)} ★
+                  </span>{" "}
+                  <span className="rating-count">
+                    ({product.productReviewsCount || 0} reviews)
+                  </span>
+                </p>
+
+                {product.productDescription && (
+                  <p className="product-description">
+                    {product.productDescription}
+                  </p>
+                )}
+
+                <div className="product-actions">
+                  <div className="product-qty-control">
+                    <span>Quantity</span>
+                    <div className="cart-qty-box">
+                      <button
+                        className="qty-btn"
+                        onClick={() => handleQtyChange(qty - 1)}
+                      >
+                        -
+                      </button>
+                      <span className="qty-value">{qty}</span>
+                      <button
+                        className="qty-btn"
+                        onClick={() => handleQtyChange(qty + 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="product-buttons">
+                    <button
+                      className="btn-primary"
+                      onClick={handleAddToCart}
+                      disabled={adding}
+                    >
+                      {adding ? "Processing..." : "Add to Cart"}
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={handleBuyNow}
+                      disabled={adding}
+                      style={{
+                        background:
+                          "linear-gradient(135deg,#ff9f4b,#ff6a3d)",
+                      }}
+                    >
+                      {adding ? "Processing..." : "Buy Now"}
+                    </button>
+                  </div>
+
+                  <button className="btn-secondary" onClick={handleBack}>
+                    {cameFromOrders ? "Back to My Orders" : "Back to Products"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* REVIEWS SECTION */}
+            <div className="product-reviews-section">
+              <h2 className="reviews-heading">Customer Reviews</h2>
+
+              {reviewsLoading && (
+                <p className="cart-info">Loading reviews...</p>
+              )}
+              {reviewsError && <p className="cart-error">{reviewsError}</p>}
+
+              {isLoggedIn && (
+                <div className="my-review-box">
+                  <p className="my-review-summary">
+                    {myReview
+                      ? "You have already reviewed this product."
+                      : "Have you purchased this item? Share your experience."}
+                  </p>
+
+                  {!reviewFormOpen && (
+                    <button
+                      className="btn-primary"
+                      style={{ padding: "7px 16px", fontSize: "0.9rem" }}
+                      onClick={() => setReviewFormOpen(true)}
+                    >
+                      {myReview ? "Edit your review" : "Write a review"}
+                    </button>
+                  )}
+
+                  {reviewFormOpen && (
+                    <form className="review-form" onSubmit={handleSubmitReview}>
+                      <div className="review-rating-select">
+                        <span>Rating:</span>
+                        <select
+                          value={reviewRating}
+                          onChange={(e) =>
+                            setReviewRating(Number(e.target.value))
+                          }
+                        >
+                          <option value={5}>5 - Excellent</option>
+                          <option value={4}>4 - Good</option>
+                          <option value={3}>3 - Average</option>
+                          <option value={2}>2 - Poor</option>
+                          <option value={1}>1 - Very Bad</option>
+                        </select>
+                      </div>
+
+                      <textarea
+                        value={reviewText}
+                        onChange={(e) => setReviewText(e.target.value)}
+                        placeholder="Describe your experience with this product..."
+                      />
+
+                      <div className="review-form-actions">
+                        <button
+                          type="submit"
+                          className="btn-primary"
+                          disabled={submittingReview}
+                        >
+                          {submittingReview ? "Saving..." : "Save review"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          onClick={() => {
+                            setReviewFormOpen(false);
+                            if (!myReview) {
+                              setReviewRating(5);
+                              setReviewText("");
+                            } else {
+                              setReviewRating(myReview.rating ?? 5);
+                              setReviewText(myReview.reviewText ?? "");
+                            }
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {!reviewsLoading && reviews.length === 0 && (
+                <p className="cart-info">
+                  No reviews yet. Be the first to review this product!
+                </p>
+              )}
+
+              {!reviewsLoading && reviews.length > 0 && (
+                <div className="reviews-list">
+                  {reviews.map((rev) => (
+                    <div key={rev.reviewId} className="review-card">
+                      <div className="review-header">
+                        <div>
+                          <p className="review-author">{rev.userName}</p>
+                          <p className="review-date">
+                            {formatReviewDate(rev.createdAt)}
+                          </p>
+                        </div>
+                        <div className="review-rating">{rev.rating} ★</div>
+                      </div>
+                      {rev.reviewText && (
+                        <p className="review-text">{rev.reviewText}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {!loading && !error && !product && (
+          <p className="cart-info">Product not found.</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ProductDetailsPage;
