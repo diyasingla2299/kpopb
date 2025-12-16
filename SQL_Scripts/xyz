@@ -1,0 +1,1301 @@
+ai.service.url=https://router.huggingface.co/hf-inference/models/
+ai.service.image-model=google/vit-base-patch16-224
+
+----------------------------------------------------------------------------------------------------------------
+package com.ShopSphere.shop_sphere.util;
+
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+
+public class ColorUtils {
+
+    public static String getDominantColorName(byte[] imageBytes) {
+        try {
+            BufferedImage original = ImageIO.read(new ByteArrayInputStream(imageBytes));
+            if (original == null) return "Unknown";
+
+            Image scaled = original.getScaledInstance(40, 40, Image.SCALE_SMOOTH);
+            BufferedImage img = new BufferedImage(40, 40, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = img.createGraphics();
+            g.drawImage(scaled, 0, 0, null);
+            g.dispose();
+
+            int r = 0, gC = 0, b = 0, total = 0;
+
+            for (int x = 0; x < 40; x++) {
+                for (int y = 0; y < 40; y++) {
+                    Color c = new Color(img.getRGB(x, y));
+                    r += c.getRed();
+                    gC += c.getGreen();
+                    b += c.getBlue();
+                    total++;
+                }
+            }
+
+            r /= total;
+            gC /= total;
+            b /= total;
+
+            return mapToColorName(r, gC, b);
+
+        } catch (Exception e) {
+            return "Unknown";
+        }
+    }
+
+    private static String mapToColorName(int r, int g, int b) {
+        if (r < 40 && g < 40 && b < 40) return "Black";
+        if (r > 200 && g > 200 && b > 200) return "White";
+        if (r < 120 && g < 120 && b < 120) return "Gray";
+
+        if (r > 180 && g < 80 && b < 80) return "Red";
+        if (r < 80 && g > 180 && b < 80) return "Green";
+        if (r < 80 && g < 80 && b > 180) return "Blue";
+
+        if (r > 200 && g > 200 && b < 80) return "Yellow";
+        if (r > 170 && g < 100 && b > 140) return "Purple";
+        if (r > 200 && g < 150 && b > 150) return "Pink";
+
+        return "Other";
+    }
+
+    public static String colorNameFromHex(String hex) {
+        if (hex == null) return "Unknown";
+        hex = hex.toUpperCase();
+
+        switch (hex) {
+            case "#000000": return "Black";
+            case "#FFFFFF": return "White";
+            case "#808080": return "Gray";
+            case "#FF0000": return "Red";
+            case "#00FF00": return "Green";
+            case "#0000FF": return "Blue";
+            case "#FFA500": return "Orange";
+            case "#FFFF00": return "Yellow";
+            case "#FFC0CB": return "Pink";
+            case "#A020F0": return "Purple";
+            default: return "Other";
+        }
+    }
+}
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+package com.ShopSphere.shop_sphere.util;
+
+import com.ShopSphere.shop_sphere.model.Product;
+
+public class ProductScoreHelper {
+
+    public static double calculateScore(
+            Product p,
+            String detectedCategory,
+            String detectedColor,
+            String detectedStructure
+    ) {
+        double score = 0;
+
+        // CATEGORY = 60%
+        if (detectedCategory != null && matchesCategory(p.getCategoryId(), detectedCategory)) {
+            score += 0.60;
+        }
+
+        // COLOR = 30%
+        if (detectedColor != null && p.getColorHex() != null) {
+            String dbColorName = ColorUtils.colorNameFromHex(p.getColorHex());
+            if (dbColorName.equalsIgnoreCase(detectedColor)) {
+                score += 0.30;
+            }
+        }
+
+        // STRUCTURE = 10%
+        if (detectedStructure != null &&
+                p.getProductName().toLowerCase().contains(detectedStructure.toLowerCase())) {
+            score += 0.10;
+        }
+
+        return score;
+    }
+
+    // ⭐ NOW PUBLIC → FIXED ERROR
+    public static boolean matchesCategory(Integer categoryId, String label) {
+        if (categoryId == null || label == null) return false;
+
+        label = label.toLowerCase();
+
+        // CATEGORY 1 → SHOES / FOOTWEAR
+        if (categoryId == 1 &&
+                (label.contains("shoe") ||
+                 label.contains("running") ||
+                 label.contains("sandal") ||
+                 label.contains("loafer") ||
+                 label.contains("clog") ||
+                 label.contains("footwear") ||
+                 label.contains("sneaker") ||
+                 label.contains("trainer"))) {
+            return true;
+        }
+
+        // CATEGORY 2 → ELECTRONICS
+        if (categoryId == 2 &&
+                (label.contains("camera") ||
+                 label.contains("electronics") ||
+                 label.contains("phone") ||
+                 label.contains("laptop") ||
+                 label.contains("dslr") ||
+                 label.contains("smartphone"))) {
+            return true;
+        }
+
+        // CATEGORY 3 → SPORTS
+        if (categoryId == 3 &&
+                (label.contains("sports") ||
+                 label.contains("ball") ||
+                 label.contains("bat") ||
+                 label.contains("racket") ||
+                 label.contains("football") ||
+                 label.contains("cricket"))) {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+---------------------------------------------------------------------------------------------------------------------------------------
+ 
+ ALTER TABLE products
+ADD COLUMN color_hex VARCHAR(10);
+
+UPDATE products SET color_hex = 'Black' WHERE product_id = 52;
+UPDATE products SET color_hex = 'Black' WHERE product_id = 53;
+UPDATE products SET color_hex = 'White' WHERE product_id = 54;
+UPDATE products SET color_hex = 'Purple' WHERE product_id = 55;
+UPDATE products SET color_hex = 'Black' WHERE product_id = 56;
+UPDATE products SET color_hex = 'Blue' WHERE product_id = 57;
+UPDATE products SET color_hex = 'Black' WHERE product_id = 58;
+UPDATE products SET color_hex = 'White' WHERE product_id = 59;
+UPDATE products SET color_hex = 'Blue' WHERE product_id = 60;
+UPDATE products SET color_hex = 'White' WHERE product_id = 61;
+UPDATE products SET color_hex = 'Black' WHERE product_id = 62;
+UPDATE products SET color_hex = 'Pink' WHERE product_id = 67;
+UPDATE products SET color_hex = 'Black' WHERE product_id = 68;
+UPDATE products SET color_hex = 'White' WHERE product_id = 69;
+UPDATE products SET color_hex = 'Black' WHERE product_id = 70;
+UPDATE products SET color_hex = 'Black' WHERE product_id = 71;
+UPDATE products SET color_hex = 'White' WHERE product_id = 72;
+UPDATE products SET color_hex = 'Green' WHERE product_id = 73;
+UPDATE products SET color_hex = 'Gray' WHERE product_id = 74;
+UPDATE products SET color_hex = 'Black' WHERE product_id = 75;
+UPDATE products SET color_hex = 'Blue' WHERE product_id = 76;
+UPDATE products SET color_hex = 'Pink' WHERE product_id = 77;
+UPDATE products SET color_hex = 'Pink' WHERE product_id = 78;
+UPDATE products SET color_hex = 'Blue' WHERE product_id = 79;
+UPDATE products SET color_hex = 'Gray' WHERE product_id = 80;
+UPDATE products SET color_hex = 'White' WHERE product_id = 81;
+UPDATE products SET color_hex = 'White' WHERE product_id = 82;
+UPDATE products SET color_hex = 'Blue' WHERE product_id = 83;
+UPDATE products SET color_hex = 'Black' WHERE product_id = 84;
+UPDATE products SET color_hex = 'White' WHERE product_id = 85;
+UPDATE products SET color_hex = 'Blue' WHERE product_id = 86;
+UPDATE products SET color_hex = 'Gray' WHERE product_id = 87;
+------------------------------------------------------------------------------------------------------------------------------
+ @Override
+    public List<Product> recommendProductsByImage(MultipartFile imageFile) {
+        try {
+            byte[] bytes = imageFile.getBytes();
+
+            // 1️⃣ CATEGORY
+            String detectedCategory = aiImageClient.classifyImage(bytes);
+            System.out.println("🟢 Detected Category = " + detectedCategory);
+
+            // 2️⃣ COLOR
+            String detectedColor = ColorUtils.getDominantColorName(bytes);
+            System.out.println("🎨 Detected Color = " + detectedColor);
+
+            // 3️⃣ STRUCTURE
+            String detectedStructure = extractStructureKeyword(detectedCategory);
+            System.out.println("🏗 Structure keyword = " + detectedStructure);
+
+            List<Product> all = productDao.findAll();
+            List<ProductScoreWrapper> scored = new ArrayList<>();
+
+            for (Product p : all) {
+
+                // ⭐ MASSIVE FIX: filter wrong-category items
+                if (!ProductScoreHelper.matchesCategory(p.getCategoryId(), detectedCategory)) {
+                    continue;
+                }
+
+                double score = ProductScoreHelper.calculateScore(
+                        p, detectedCategory, detectedColor, detectedStructure
+                );
+
+                scored.add(new ProductScoreWrapper(p, score));
+            }
+
+            // remove zero matches
+            scored.removeIf(s -> s.score <= 0);
+
+            // sort
+            scored.sort((a, b) -> Double.compare(b.score, a.score));
+
+            return scored.stream().map(s -> s.product).toList();
+
+        } catch (Exception e) {
+            System.out.println("❌ RECOMMENDATION FAILED → Full stack trace:");
+            e.printStackTrace();
+            throw new RuntimeException("Recommendation failed", e);
+        }
+    }
+
+    private String extractStructureKeyword(String label) {
+        if (label == null) return null;
+
+        label = label.toLowerCase();
+
+        if (label.contains("running")) return "running";
+        if (label.contains("loafer")) return "loafer";
+        if (label.contains("sandal")) return "sandal";
+        if (label.contains("clog")) return "clog";
+
+        return null;
+    }
+
+    static class ProductScoreWrapper {
+        Product product;
+        double score;
+
+        ProductScoreWrapper(Product p, double s) {
+            this.product = p;
+            this.score = s;
+        }
+    }
+}
+----------------------------------------------------------------------------------------------------------------------------
+package com.ShopSphere.shop_sphere.repository;
+
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.stereotype.Repository;
+
+import com.ShopSphere.shop_sphere.exception.OutOfStockException;
+import com.ShopSphere.shop_sphere.model.Product;
+import com.ShopSphere.shop_sphere.util.ProductRowMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+@Repository
+public class ProductDaoImpl implements ProductDao {
+
+    private final JdbcTemplate jdbcTemplate;
+
+    public ProductDaoImpl(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    @Override
+    public int save(Product product) {
+
+        String sql = "INSERT INTO products (user_id, category_id, product_name, product_price, product_mrp, "
+                + "product_quantity, product_avg_rating, product_reviews_count, brand, description, image_url, "
+                + "color_hex, embedding) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+
+            ps.setInt(1, product.getUserId());
+            ps.setInt(2, product.getCategoryId());
+            ps.setString(3, product.getProductName());
+            ps.setBigDecimal(4, product.getProductPrice());
+            ps.setBigDecimal(5, product.getProductMrp());
+            ps.setInt(6, product.getProductQuantity());
+            ps.setBigDecimal(7, product.getProductAvgRating());
+            ps.setInt(8, product.getProductReviewsCount());
+            ps.setString(9, product.getBrand());
+            ps.setString(10, product.getProductDescription());
+            ps.setString(11, product.getImageUrl());
+            ps.setString(12, product.getColorHex());
+
+            // ⭐ FIXED — Handle JSON conversion inside try/catch
+            try {
+                if (product.getEmbedding() != null) {
+                    String json = new ObjectMapper().writeValueAsString(product.getEmbedding());
+                    ps.setString(13, json);
+                } else {
+                    ps.setNull(13, java.sql.Types.VARCHAR);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                ps.setNull(13, java.sql.Types.VARCHAR);
+            }
+
+            return ps;
+        }, keyHolder);
+
+        Number key = keyHolder.getKey();
+        if (key != null) {
+            product.setProductId(key.intValue());
+        }
+
+        return product.getProductId();
+    }
+
+
+    @Override
+    public Optional<Product> findById(int productId) {
+        String sql = "select * from products where product_id = ?";
+        List<Product> list = jdbcTemplate.query(sql, new ProductRowMapper(), productId);
+        if (list.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(list.get(0));
+    }
+
+    @Override
+    public List<Product> findAll() {
+        String sql = "select * from products";
+        return jdbcTemplate.query(sql, new ProductRowMapper());
+    }
+
+    @Override
+    public List<Product> findByCategory(int categoryId) {
+        String sql = "select * from products where category_id = ?";
+        return jdbcTemplate.query(sql, new ProductRowMapper(), categoryId);
+    }
+
+    @Override
+    public List<Product> findBySeller(int userId) {
+        String sql = "select * from products where user_id=? ";
+        return jdbcTemplate.query(sql, new ProductRowMapper(), userId);
+    }
+
+    // ⭐ SMART SEARCH:
+    // - no description search
+    // - len < 3: only product_name prefix
+    // - len >= 3: product_name + brand (contains), category only on exact match
+    @Override
+    public List<Product> searchByName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return findAll();
+        }
+
+        String q = name.trim().toLowerCase();
+        int len = q.length();
+
+        if (len < 3) {
+            // VERY SHORT QUERY (1–2 letters):
+            // Only search product names that START WITH the letters.
+            String prefix = q + "%";
+
+            String sql =
+                "SELECT p.* " +
+                "FROM products p " +
+                "WHERE LOWER(p.product_name) LIKE ? " +
+                "ORDER BY LOWER(p.product_name)";
+
+            return jdbcTemplate.query(sql, new ProductRowMapper(), prefix);
+        } else {
+            // LONGER QUERY (>= 3 letters):
+            // - product_name contains (but prioritize starts-with)
+            // - brand contains (but only kicks in now)
+            // - category_name only on exact match (full category typed)
+            String contains = "%" + q + "%";
+            String prefix = q + "%";
+
+            String sql =
+                "SELECT p.* " +
+                "FROM products p " +
+                "LEFT JOIN categories c ON p.category_id = c.category_id " +
+                "WHERE LOWER(p.product_name) LIKE ? " +      // contains in name
+                "   OR LOWER(p.brand) LIKE ? " +             // contains in brand
+                "   OR LOWER(c.category_name) = ? " +        // exact category name
+                "ORDER BY " +
+                "   CASE " +
+                "       WHEN LOWER(p.product_name) LIKE ? THEN 0 " +  // name starts with
+                "       WHEN LOWER(p.brand) LIKE ? THEN 1 " +         // brand starts with
+                "       WHEN LOWER(c.category_name) = ? THEN 2 " +    // exact category
+                "       ELSE 3 " +
+                "   END, " +
+                "   LOWER(p.product_name)";
+
+            return jdbcTemplate.query(sql, new ProductRowMapper(),
+                    contains, contains, q,
+                    prefix, prefix, q);
+        }
+    }
+
+    @Override
+    public int update(Product product) {
+
+        String sql = "UPDATE products SET user_id = ?, category_id = ?, product_name = ?, product_price = ?, "
+                + "product_mrp = ?, product_quantity = ?, product_avg_rating = ?, product_reviews_count = ?, "
+                + "brand = ?, description = ?, image_url = ?, color_hex = ?, embedding = ? "
+                + "WHERE product_id = ?";
+
+        String embeddingJson = null;
+        try {
+            if (product.getEmbedding() != null) {
+                embeddingJson = new ObjectMapper().writeValueAsString(product.getEmbedding());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return jdbcTemplate.update(sql,
+                product.getUserId(),
+                product.getCategoryId(),
+                product.getProductName(),
+                product.getProductPrice(),
+                product.getProductMrp(),
+                product.getProductQuantity(),
+                product.getProductAvgRating(),
+                product.getProductReviewsCount(),
+                product.getBrand(),
+                product.getProductDescription(),
+                product.getImageUrl(),
+                product.getColorHex(),
+                embeddingJson,
+                product.getProductId()
+        );
+    }
+
+
+
+    @Override
+    public int deleteById(int productId) {
+        String sql = "delete from products where product_id =?";
+        return jdbcTemplate.update(sql,productId);
+    }
+
+    @Override
+    public List<Product> searchByBrand(String Brand) {
+        if (Brand == null || Brand.trim().isEmpty()) {
+            return findAll();
+        }
+        String sql = "select * from products where LOWER(brand) LIKE ?";
+        String pattern = "%" + Brand.toLowerCase() + "%";
+        return jdbcTemplate.query(sql, new ProductRowMapper(), pattern);
+    }
+
+    @Override
+    public int getSellerIdByProductId(int productId) {
+        String sql = "SELECT user_id FROM products WHERE product_id=?";
+        return jdbcTemplate.queryForObject(sql, Integer.class, productId);
+    }
+
+    @Override
+    public int decreaseStockIfAvailable(int productId, int quantity) {
+        String sql = "Update products set product_quantity = product_quantity - ? where product_id =? "
+                + "AND product_quantity >=?";
+        int rows =  jdbcTemplate.update(sql,quantity, productId, quantity);
+
+        if(rows <=0) {
+            throw new OutOfStockException("Not enough stock to reduce for productId: "+ productId);
+        }
+        return rows;
+    }
+
+    @Override
+    public int increaseStock(int productId, int quantity) {
+        String sql = "Update products set product_quantity = product_quantity + ? where product_id =? ";
+        return jdbcTemplate.update(sql,quantity, productId);
+    }
+
+    @Override
+    public List<Map<String, Object>> getProductsByCategory(int categoryId) {
+        String sql = "SELECT p.product_id, p.product_name, p.product_price, p.product_mrp, " +
+                     "c.category_name FROM products p " +
+                     "INNER JOIN categories c ON p.category_id = c.category_id " +
+                     "WHERE c.category_id = ?";
+
+        return jdbcTemplate.queryForList(sql, categoryId);
+    }
+
+    @Override
+    public List<Map<String, Object>> getSellerProducts(int sellerId) {
+        String sql = "SELECT p.product_id, p.product_name, p.product_price, p.product_quantity, " +
+                     "u.name AS seller_name FROM products p " +
+                     "INNER JOIN user u ON p.user_id = u.user_id " +
+                     "WHERE p.user_id = ?";
+
+        return jdbcTemplate.queryForList(sql, sellerId);
+    }
+}
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+package com.ShopSphere.shop_sphere.service;
+
+
+import com.ShopSphere.shop_sphere.client.AiImageClient;
+import com.ShopSphere.shop_sphere.exception.ResourceNotFoundException;
+import com.ShopSphere.shop_sphere.model.Product;
+import com.ShopSphere.shop_sphere.model.User;
+import com.ShopSphere.shop_sphere.repository.ProductDao;
+import com.ShopSphere.shop_sphere.repository.UserDao;
+import com.ShopSphere.shop_sphere.util.ColorUtils;
+import com.ShopSphere.shop_sphere.util.ProductScoreHelper;
+
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.InputStream;
+import java.net.URL;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+public class ProductServiceImpl implements ProductService {
+
+    public ProductServiceImpl(ProductDao productDao, UserDao userDao, AiImageClient aiImageClient) {
+		super();
+		this.productDao = productDao;
+		this.userDao = userDao;
+		this.aiImageClient = aiImageClient;
+	}
+
+	private final ProductDao productDao;
+    private final UserDao userDao;
+
+    private final AiImageClient aiImageClient;
+
+   
+
+    // ============================================================
+    //                       CREATE PRODUCT
+    // ============================================================
+    @Override
+    public Product createProduct(Product product) {
+
+        if (product == null) throw new IllegalArgumentException("Product must not be null");
+
+        if (product.getProductQuantity() == null) product.setProductQuantity(0);
+        if (product.getProductAvgRating() == null) product.setProductAvgRating(java.math.BigDecimal.ZERO);
+        if (product.getProductReviewsCount() == null) product.setProductReviewsCount(0);
+        if (product.getImageUrl() == null) product.setImageUrl("");
+
+        // Validate seller
+        User user = userDao.findById(product.getUserId());
+        if (user == null) throw new ResourceNotFoundException("User not found: " + product.getUserId());
+        if (!"SELLER".equalsIgnoreCase(user.getRole()))
+            throw new RuntimeException("Only sellers can create products.");
+
+        
+
+        int rows = productDao.save(product);
+        if (rows <= 0) throw new RuntimeException("Create failed.");
+
+        return product;
+    }
+
+    // ============================================================
+    //                       BASIC METHODS
+    // ============================================================
+    @Override
+    public Product getProductById(int productId) {
+        return productDao.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
+    }
+
+    @Override public List<Product> getAllProducts() { return productDao.findAll(); }
+    @Override public List<Product> getProductsByCategory(int categoryId) { return productDao.findByCategory(categoryId); }
+    @Override public List<Product> getProductsBySeller(int userId) { return productDao.findBySeller(userId); }
+    @Override public List<Product> searchProductsByName(String name) { return productDao.searchByName(name); }
+    @Override public List<Product> searchProductsByBrand(String brand) { return productDao.searchByBrand(brand); }
+
+    @Override
+    public Product updateProduct(Product product) {
+        if (product == null) throw new IllegalArgumentException("Product must not be null");
+        getProductById(product.getProductId());
+        int rows = productDao.update(product);
+        if (rows <= 0) throw new RuntimeException("Update failed");
+        return product;
+    }
+
+    @Override
+    public List<Map<String, Object>> fetchProductsByCategory(int id) {
+        return productDao.getProductsByCategory(id);
+    }
+
+    @Override
+    public void deleteProduct(int productId) {
+        getProductById(productId);
+        int rows = productDao.deleteById(productId);
+        if (rows <= 0) throw new RuntimeException("Delete failed");
+    }
+
+    @Override
+    public List<Map<String, Object>> fetchSellerProducts(int sellerId) {
+        return productDao.getSellerProducts(sellerId);
+    }
+
+    @Override
+    public List<Product> recommendProductsByImage(MultipartFile imageFile) {
+        try {
+            byte[] bytes = imageFile.getBytes();
+
+            // 1️⃣ CATEGORY
+            String detectedCategory = aiImageClient.classifyImage(bytes);
+            System.out.println("🟢 Detected Category = " + detectedCategory);
+
+            // 2️⃣ COLOR
+            String detectedColor = ColorUtils.getDominantColorName(bytes);
+            System.out.println("🎨 Detected Color = " + detectedColor);
+
+            // 3️⃣ STRUCTURE
+            String detectedStructure = extractStructureKeyword(detectedCategory);
+            System.out.println("🏗 Structure keyword = " + detectedStructure);
+
+            List<Product> all = productDao.findAll();
+            List<ProductScoreWrapper> scored = new ArrayList<>();
+
+            for (Product p : all) {
+
+                // ⭐ MASSIVE FIX: filter wrong-category items
+                if (!ProductScoreHelper.matchesCategory(p.getCategoryId(), detectedCategory)) {
+                    continue;
+                }
+
+                double score = ProductScoreHelper.calculateScore(
+                        p, detectedCategory, detectedColor, detectedStructure
+                );
+
+                scored.add(new ProductScoreWrapper(p, score));
+            }
+
+            // remove zero matches
+            scored.removeIf(s -> s.score <= 0);
+
+            // sort
+            scored.sort((a, b) -> Double.compare(b.score, a.score));
+
+            return scored.stream().map(s -> s.product).toList();
+
+        } catch (Exception e) {
+            System.out.println("❌ RECOMMENDATION FAILED → Full stack trace:");
+            e.printStackTrace();
+            throw new RuntimeException("Recommendation failed", e);
+        }
+    }
+
+    private String extractStructureKeyword(String label) {
+        if (label == null) return null;
+
+        label = label.toLowerCase();
+
+        if (label.contains("running")) return "running";
+        if (label.contains("loafer")) return "loafer";
+        if (label.contains("sandal")) return "sandal";
+        if (label.contains("clog")) return "clog";
+
+        return null;
+    }
+
+    static class ProductScoreWrapper {
+        Product product;
+        double score;
+
+        ProductScoreWrapper(Product p, double s) {
+            this.product = p;
+            this.score = s;
+        }
+    }
+}
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+public class Product {
+
+    private int productId;
+    private int userId;
+    private Integer categoryId;
+    private String productName;
+    private BigDecimal productPrice;
+    private BigDecimal productMrp;
+    private Integer productQuantity;
+    private BigDecimal productAvgRating;
+    private Integer productReviewsCount;
+    private String brand;
+    private String productDescription;
+    private String imageUrl;
+    private List<Double> embedding;
+
+    public List<Double> getEmbedding() { return embedding; }
+    public void setEmbedding(List<Double> embedding) { this.embedding = embedding; }
+
+
+    private String colorHex;
+
+    public Product() {}
+
+    public Product(int productId, int userId, Integer categoryId, String productName,
+                   BigDecimal productPrice, BigDecimal productMrp, Integer productQuantity,
+                   BigDecimal productAvgRating, Integer productReviewsCount,
+                   String brand, String productDescription, String imageUrl,
+                   String colorHex) {
+
+        this.productId = productId;
+        this.userId = userId;
+        this.categoryId = categoryId;
+        this.productName = productName;
+        this.productPrice = productPrice;
+        this.productMrp = productMrp;
+        this.productQuantity = productQuantity;
+        this.productAvgRating = productAvgRating;
+        this.productReviewsCount = productReviewsCount;
+        this.brand = brand;
+        this.productDescription = productDescription;
+        this.imageUrl = imageUrl;
+        this.colorHex = colorHex;
+    }
+
+    // Getters & Setters
+
+    public int getProductId() { return productId; }
+    public void setProductId(int productId) { this.productId = productId; }
+
+    public int getUserId() { return userId; }
+    public void setUserId(int userId) { this.userId = userId; }
+
+    public Integer getCategoryId() { return categoryId; }
+    public void setCategoryId(Integer categoryId) { this.categoryId = categoryId; }
+
+    public String getProductName() { return productName; }
+    public void setProductName(String productName) { this.productName = productName; }
+
+    public BigDecimal getProductPrice() { return productPrice; }
+    public void setProductPrice(BigDecimal productPrice) { this.productPrice = productPrice; }
+
+    public BigDecimal getProductMrp() { return productMrp; }
+    public void setProductMrp(BigDecimal productMrp) { this.productMrp = productMrp; }
+
+    public Integer getProductQuantity() { return productQuantity; }
+    public void setProductQuantity(Integer productQuantity) { this.productQuantity = productQuantity; }
+
+    public BigDecimal getProductAvgRating() { return productAvgRating; }
+    public void setProductAvgRating(BigDecimal productAvgRating) { this.productAvgRating = productAvgRating; }
+
+    public Integer getProductReviewsCount() { return productReviewsCount; }
+    public void setProductReviewsCount(Integer productReviewsCount) { this.productReviewsCount = productReviewsCount; }
+
+    public String getBrand() { return brand; }
+    public void setBrand(String brand) { this.brand = brand; }
+
+    public String getProductDescription() { return productDescription; }
+    public void setProductDescription(String productDescription) { this.productDescription = productDescription; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    // ⭐ NEW Getter/Setter
+    public String getColorHex() { return colorHex; }
+    public void setColorHex(String colorHex) { this.colorHex = colorHex; }
+}
+
+----------------------------------------------------------------------------------------------------------------------
+   @PostMapping("/recommend")
+    public ResponseEntity<?> recommendByImage(@RequestParam("image") MultipartFile imageFile) {
+
+        if (imageFile == null || imageFile.isEmpty()) {
+            return ResponseEntity.badRequest().body("Image missing");
+        }
+
+        List<Product> products = productService.recommendProductsByImage(imageFile);
+        return ResponseEntity.ok(products);
+    }
+
+-------------------------------------------------------------------------------------------------------------------------
+package com.ShopSphere.shop_sphere.util;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
+import org.springframework.jdbc.core.RowMapper;
+import com.ShopSphere.shop_sphere.model.Product;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+public class ProductRowMapper implements RowMapper<Product> {
+
+    @Override
+    public Product mapRow(ResultSet rs, int rowNum) throws SQLException {
+
+        Product pr = new Product();
+        pr.setProductId(rs.getInt("product_id"));
+        pr.setUserId(rs.getInt("user_id"));
+        pr.setCategoryId(rs.getInt("category_id"));
+        pr.setProductName(rs.getString("product_name"));
+        pr.setProductPrice(rs.getBigDecimal("product_price"));
+        pr.setProductMrp(rs.getBigDecimal("product_mrp"));
+        pr.setProductQuantity(rs.getInt("product_quantity"));
+        pr.setProductAvgRating(rs.getBigDecimal("product_avg_rating"));
+        pr.setProductReviewsCount(rs.getInt("product_reviews_count"));
+        pr.setBrand(rs.getString("brand"));
+        pr.setProductDescription(rs.getString("description"));
+        pr.setImageUrl(rs.getString("image_url"));
+
+        // -------------------------
+        // EMBEDDING
+        // -------------------------
+        String embeddingJson = rs.getString("embedding");
+
+        if (embeddingJson != null) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                List<Double> vector = mapper.readValue(
+                        embeddingJson,
+                        new com.fasterxml.jackson.core.type.TypeReference<List<Double>>() {}
+                );
+                pr.setEmbedding(vector);
+            } catch (Exception e) {
+                e.printStackTrace();
+                pr.setEmbedding(null);
+            }
+        } else {
+            pr.setEmbedding(null);
+        }
+
+        // -------------------------
+        // COLOR
+        // -------------------------
+        pr.setColorHex(rs.getString("color_hex"));
+
+        return pr;
+    }
+}
+
+------------------------------------------------------------------------------------------------------------------------------------
+package com.ShopSphere.shop_sphere.config;
+
+import org.apache.hc.client5.http.classic.HttpClient;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.core5.util.Timeout;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.web.client.RestTemplate;
+
+@Configuration
+public class RestTemplateConfig {
+
+    @Bean
+    public RestTemplate restTemplate() {
+
+        // ----- Connection pool -----
+        PoolingHttpClientConnectionManager connManager =
+                new PoolingHttpClientConnectionManager();
+        connManager.setMaxTotal(200);          // max total connections
+        connManager.setDefaultMaxPerRoute(50); // per-host limit
+
+        // ----- Timeouts -----
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectTimeout(Timeout.ofSeconds(20))
+                .setConnectionRequestTimeout(Timeout.ofSeconds(20))
+                .setResponseTimeout(Timeout.ofSeconds(40)) // HF can be slow
+                .build();
+
+        // ----- HttpClient (Apache 5) -----
+        HttpClient httpClient = HttpClients.custom()
+                .setConnectionManager(connManager)
+                .setDefaultRequestConfig(requestConfig)
+                .build();
+
+        // ----- RestTemplate factory -----
+        HttpComponentsClientHttpRequestFactory factory =
+                new HttpComponentsClientHttpRequestFactory(httpClient);
+
+        return new RestTemplate(factory);
+    }
+}
+--------------------------------------------------------------------------------------------------------------------------------
+package com.ShopSphere.shop_sphere.client;
+
+import com.ShopSphere.shop_sphere.exception.AiServiceException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+
+@Component
+public class AiImageClient {
+
+    private final RestTemplate restTemplate;
+
+    @Value("${ai.service.url}")
+    private String baseUrl;
+
+    @Value("${ai.service.image-model}")
+    private String imageModel;
+
+    @Value("${ai.service.api-key}")
+    private String apiKey;
+
+    public AiImageClient(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
+    public String classifyImage(byte[] imageBytes) {
+        try {
+            String url = baseUrl + imageModel;
+
+            String base64Img = Base64.getEncoder().encodeToString(imageBytes);
+            Map<String, Object> payload = Map.of("inputs", base64Img);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setAccept(List.of(MediaType.APPLICATION_JSON)); // ⭐ required
+            headers.setBearerAuth(apiKey);
+
+            HttpEntity<Object> request = new HttpEntity<>(payload, headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    url, HttpMethod.POST, request, String.class
+            );
+
+            System.out.println("🔍 RAW HF RESPONSE: " + response.getBody());
+
+            ObjectMapper mapper = new ObjectMapper();
+            String body = response.getBody().trim();
+
+            // HF returns list
+            if (body.startsWith("[")) {
+                List<Map<String, Object>> arr = mapper.readValue(body, List.class);
+                if (arr.isEmpty()) throw new AiServiceException("Empty category response");
+                return arr.get(0).get("label").toString();
+            }
+
+            // HF returns single object
+            if (body.startsWith("{")) {
+                Map<String, Object> map = mapper.readValue(body, Map.class);
+                if (map.containsKey("label")) return map.get("label").toString();
+            }
+
+            throw new AiServiceException("Unexpected HF format: " + body);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new AiServiceException("Image classification failed", e);
+        }
+    }
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------
+/*package com.ShopSphere.shop_sphere.client;
+
+import com.ShopSphere.shop_sphere.exception.AiServiceException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.List;
+import java.util.Map;
+
+@Component
+public class AiClipClient {
+
+    private final RestTemplate restTemplate;
+
+    @Value("${ai.service.url}")
+    private String baseUrl;
+
+    @Value("${ai.service.clip-model}")
+    private String clipModel;
+
+    @Value("${ai.service.api-key}")
+    private String apiKey;
+
+    public AiClipClient(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Double> getImageEmbedding(byte[] imageBytes) {
+
+        try {
+            // Correct URL for HF inference API
+            String url = baseUrl + clipModel;
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setBearerAuth(apiKey);
+
+            HttpEntity<byte[]> request = new HttpEntity<>(imageBytes, headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    request,
+                    String.class
+            );
+
+            // Parse JSON
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, Object> json = mapper.readValue(response.getBody(), Map.class);
+
+            // Jina returns embedding like this:
+            // { "embedding": [...] }
+            if (json.containsKey("embedding")) {
+                return (List<Double>) json.get("embedding");
+            }
+
+            // Some HF inference models return:
+            // { "data": [ ... ] }
+            if (json.containsKey("data")) {
+                return (List<Double>) json.get("data");
+            }
+
+            // Some return:
+            // { "outputs": [ { "embedding": [...] } ] }
+            if (json.containsKey("outputs")) {
+                List<Map<String, Object>> outputs = (List<Map<String, Object>>) json.get("outputs");
+
+                if (outputs != null && !outputs.isEmpty()
+                        && outputs.get(0).containsKey("embedding")) {
+                    return (List<Double>) outputs.get(0).get("embedding");
+                }
+            }
+
+            throw new AiServiceException("❌ No embedding found in response: " + json);
+
+        } catch (Exception e) {
+            throw new AiServiceException("❌ Jina CLIP embedding failed", e);
+        }
+    }
+}
+*/
+
+-----------------------------------------------------------------------------------------------------------------------------
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+
+// Because SearchDropdown is inside /pages
+import SearchDropdown from "../pages/SearchDropdown";
+// Search.css is also inside /pages
+import "../pages/Search.css";
+
+const SEARCH_API_URL = "http://localhost:8888/api/products/search";
+const AI_API_URL = "http://localhost:8888/api/products/recommend";
+
+
+export default function SearchBar({ className = "" }) {
+  const [term, setTerm] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const navigate = useNavigate();
+  const debounceRef = useRef(null);
+  const wrapperRef = useRef(null);
+
+  const MIN_CHARS = 1;
+  const SUGGESTION_LIMIT = 6;
+
+  /* ---------------------- TEXT SEARCH ---------------------- */
+  const handleChange = (e) => {
+    const value = e.target.value;
+    setTerm(value);
+
+    if (!value.trim()) {
+      setSuggestions([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(() => {
+      if (value.trim().length >= MIN_CHARS) {
+        fetchSuggestions(value.trim());
+      } else {
+        setSuggestions([]);
+        setShowDropdown(false);
+      }
+    }, 300);
+  };
+
+  const fetchSuggestions = async (value) => {
+    try {
+      setLoading(true);
+
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(
+        `${SEARCH_API_URL}?name=${encodeURIComponent(value)}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+
+      if (!response.ok) throw new Error("Suggestion fetch failed");
+
+      const data = await response.json();
+      setSuggestions((Array.isArray(data) ? data : []).slice(0, SUGGESTION_LIMIT));
+      setShowDropdown(true);
+    } catch (err) {
+      console.error(err);
+      setError("Unable to fetch suggestions");
+      setShowDropdown(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ---------------------- SUBMIT ---------------------- */
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const q = term.trim();
+    if (!q) return;
+
+    navigate(`/search?query=${encodeURIComponent(q)}`);
+    setShowDropdown(false);
+  };
+
+  const handleSelectProduct = (productId) => {
+    setShowDropdown(false);
+    setTerm("");
+    navigate(`/product/${productId}`);
+  };
+
+  const handleViewAll = () => {
+    const q = term.trim();
+    if (!q) return;
+
+    setShowDropdown(false);
+    navigate(`/search?query=${encodeURIComponent(q)}`);
+  };
+
+  /* ---------------------- AI CAMERA SEARCH ---------------------- */
+  const handleCameraClick = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = (e) => handleImageUpload(e.target.files[0]);
+    input.click();
+  };
+
+  const handleImageUpload = async (file) => {
+  if (!file) return;
+
+  try {
+    setLoading(true);
+    setError("");
+
+    const token = localStorage.getItem("token");
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const res = await fetch(AI_API_URL, {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(t || "AI Search failed");
+    }
+
+    const aiResults = await res.json(); // backend returns array
+
+    navigate(`/search?ai=true`, {
+      state: { aiResults },
+    });
+
+    setShowDropdown(false);
+  } catch (err) {
+    console.error("AI error:", err);
+    setError("Image search failed");
+  } finally {
+    setLoading(false);
+  }
+};
+
+ 
+
+  /* ---------------------- CLOSE DROPDOWN ---------------------- */
+  useEffect(() => {
+    const handler = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div className={`relative ${className}`} ref={wrapperRef}>
+      <form onSubmit={handleSubmit}>
+        <div className="group flex items-center gap-2 w-full max-w-md rounded-full border border-gray-300 bg-white px-4 py-3 shadow-sm">
+
+          {/* Search Icon */}
+          <svg className="h-5 w-5 text-gray-600" stroke="currentColor" fill="none" strokeWidth="2">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+
+          {/* Input */}
+          <input
+            type="search"
+            placeholder="Search products, categories…"
+            value={term}
+            onChange={handleChange}
+            autoComplete="off"
+            className="w-full bg-transparent outline-none"
+          />
+
+          {/* Camera Button */}
+          <button
+            type="button"
+            className="ai-camera-btn"
+            onClick={handleCameraClick}
+          >
+            📷
+          </button>
+
+          {/* Submit Button */}
+          <button className="hidden sm:inline-flex bg-black text-white px-3 py-1 rounded-full">
+            Search
+          </button>
+        </div>
+      </form>
+
+      {showDropdown && term.trim() && (
+        <div className="absolute left-0 mt-2 w-full max-w-md z-30">
+          <SearchDropdown
+            query={term}
+            suggestions={suggestions}
+            loading={loading}
+            error={error}
+            onSelect={handleSelectProduct}
+            onViewAll={handleViewAll}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
