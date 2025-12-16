@@ -1299,3 +1299,67 @@ export default function SearchBar({ className = "" }) {
     </div>
   );
 }
+-------------
+INSERT INTO products
+(user_id, category_id, product_name, product_price, product_mrp, product_quantity,
+ product_avg_rating, product_reviews_count, brand, description, image_url)
+VALUES
+(2, 2, 'Nike Revolution 6 Running Shoes', 2999.00, 3699.00, 25, 4.5, 180, 'Nike',
+ 'Lightweight breathable running shoe ideal for daily jogging.', 'shoes1.jpg'),
+
+(2, 2, 'Nike Air Winflo 10 Sports Shoes', 5499.00, 6299.00, 18, 4.6, 220, 'Nike',
+ 'Engineered mesh upper with cushioned midsole for long runs.', 'shoes2.jpg'),
+
+(2, 2, 'Nike Court Royale 2 Sneakers', 3999.00, 4499.00, 20, 4.4, 130, 'Nike',
+ 'Classic leather sneakers with clean iconic look.', 'shoes3.jpg'),
+
+(2, 2, 'Adidas Lite Racer 3.0 Shoes', 2799.00, 3399.00, 30, 4.3, 140, 'Adidas',
+ 'Mesh lightweight shoes with Cloudfoam cushioning.', 'shoes4.jpg'),
+
+(2, 2, 'Adidas Duramo SL Running Shoes', 3499.00, 4299.00, 22, 4.5, 175, 'Adidas',
+ 'Running shoes with soft cushioning, perfect for daily training.', 'shoes5.jpg'),
+
+(2, 2, 'Adidas Grand Court Base Sneakers', 4499.00, 5299.00, 15, 4.4, 160, 'Adidas',
+ 'Timeless tennis-style sneakers with synthetic leather.', 'shoes6.jpg'),
+
+(2, 2, 'Puma Softride Rift Running Shoes', 3299.00, 3999.00, 28, 4.3, 120, 'Puma',
+ 'SoftFoam+ cushioned shoes designed for comfort and performance.', 'shoes7.jpg'),
+
+(2, 2, 'Puma Smash v2 Sneakers', 2699.00, 3199.00, 26, 4.2, 95, 'Puma',
+ 'Suede low-top sneakers with rubber outsole for casual wear.', 'shoes8.jpg'),
+
+(2, 2, 'Puma Flyer Runner Shoes', 2999.00, 3799.00, 21, 4.4, 140, 'Puma',
+ 'Running shoes with lightweight EVA midsole.', 'shoes9.jpg'),
+
+(2, 2, 'Skechers GoRun Consistent Shoes', 3599.00, 4299.00, 24, 4.5, 155, 'Skechers',
+ 'Responsive ULTRA GO cushioning for smooth running.', 'shoes10.jpg'),
+
+(2, 2, 'Skechers Dynamight 2.0 Shoes', 3299.00, 3899.00, 27, 4.3, 110, 'Skechers',
+ 'Memory Foam cushioned comfort sneakers for daily use.', 'shoes11.jpg'),
+
+(2, 2, 'Skechers Bounder Sneakers', 2899.00, 3399.00, 30, 4.2, 102, 'Skechers',
+ 'Athleisure shoes with flexible midsole and breathable upper.', 'shoes12.jpg'),
+
+(2, 2, 'Nike Downshifter 12 Running Shoes', 3799.00, 4499.00, 20, 4.5, 190, 'Nike',
+ 'Supportive, cushioned running shoes with lightweight feel.', 'shoes13.jpg'),
+
+(2, 2, 'Nike Flex Experience Run 11', 3499.00, 4099.00, 22, 4.4, 150, 'Nike',
+ 'Running shoes with natural flexibility and breathable design.', 'shoes14.jpg'),
+
+(2, 2, 'Adidas RunFalcon 3.0 Shoes', 2999.00, 3799.00, 25, 4.3, 112, 'Adidas',
+ 'Supportive running shoes ideal for gym and outdoors.', 'shoes15.jpg'),
+
+(2, 2, 'Adidas CourtJam Control Tennis Shoes', 4999.00, 5799.00, 14, 4.6, 98, 'Adidas',
+ 'Tennis shoes with stable midsole and durable outsole.', 'shoes16.jpg'),
+
+(2, 2, 'Puma Enzo 2 Training Shoes', 2499.00, 3099.00, 32, 4.2, 85, 'Puma',
+ 'Stylish training shoes with bold branding and comfort fit.', 'shoes17.jpg'),
+
+(2, 2, 'Puma Tazon 6 FM Sneakers', 4499.00, 5299.00, 19, 4.5, 125, 'Puma',
+ 'Performance sneakers with stable cushioning.', 'shoes18.jpg'),
+
+(2, 2, 'Skechers Flex Advantage 4.0', 3199.00, 3799.00, 28, 4.3, 119, 'Skechers',
+ 'Flexible athletic shoes with breathable upper.', 'shoes19.jpg'),
+
+(2, 2, 'Skechers GoWalk Arch Fit Shoes', 4999.00, 5699.00, 16, 4.7, 210, 'Skechers',
+ 'Arch Fit insole system designed for podiatrist-certified comfort.', 'shoes20.jpg');
